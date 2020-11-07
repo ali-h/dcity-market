@@ -10,8 +10,9 @@
   <script>
     $(window).bind("load", function() {
       const ssc = new SSC('https://api.hive-engine.com/rpc');
+      const format = (new URL(window.location)).searchParams.get('format');
       const getList = async () => {
-        const book = [];
+        let table_body = '';
         let isPending = true;
         let offset = 0;
         while (isPending) {
@@ -20,27 +21,43 @@
             {},
             1000,
             offset,
-            []);
-          list.forEach(el => book.push(el));
+            [{index: "_id", descending: true}]);
+          if (format === 'true') {
+            for (let i = 0; i < list.length; i++) {
+              const data = list[i];
+              const timestamp = new Date(data.timestamp);
+              const object =
+              `<tr>
+                <td>${data.grouping.name}</td>
+                <td>${data.nftId}</td>
+                <td>${data.price}</td>
+                <td>${data.priceSymbol}</td>
+                <td>${data.account}</td>
+                <td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>
+              </tr>`;
+              table_body += object;
+            }
+          }
           if (list.length !== 1000) {
             isPending = false;
           }
           else offset += 1000;
         }
-        const table = $("#table");
-        book.forEach(data => {
-          const timestamp = new Date(data.timestamp);
-          const order = $("<tr>");
-          order.append(`<td>${data.grouping.name}</td>`);
-          order.append(`<td>${data.nftId}</td>`);
-          order.append(`<td>${data.price}</td>`);
-          order.append(`<td>${data.priceSymbol}</td>`);
-          order.append(`<td>${data.account}</td>`);
-          order.append(`<td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>`);
-          table.append(order);
-        });
-        $("span").remove()
-        $("table").removeAttr("style");
+        const table =
+        `<table border="1">
+          <thead>
+            <th>Name</th>
+            <th>Id</th>
+            <th>Price</th>
+            <th>Symbol</th>
+            <th>Account</th>
+            <th>Time</th>
+          </thead>
+          <tbody>
+            ${table_body}
+          </tbody>
+        </table>`;
+        document.write(table);
       };
       getList();
     });
@@ -48,16 +65,5 @@
 </head>
 <body>
   <span>loading</span>
-  <table border="1" style="display: none;">
-    <thead>
-      <th>Name</th>
-      <th>Id</th>
-      <th>Price</th>
-      <th>Symbol</th>
-      <th>Account</th>
-      <th>Time</th>
-    </thead>
-    <tbody id="table"></tbody>
-  </table>
 </body>
 </html>
