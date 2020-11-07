@@ -10,7 +10,6 @@
   <script>
     $(window).bind("load", function() {
       const ssc = new SSC('https://api.hive-engine.com/rpc');
-      const format = (new URL(window.location)).searchParams.get('format');
       const getList = async () => {
         let table_body = '';
         let isPending = true;
@@ -22,21 +21,19 @@
             1000,
             offset,
             [{index: "_id", descending: true}]);
-          if (format === 'true') {
-            for (let i = 0; i < list.length; i++) {
-              const data = list[i];
-              const timestamp = new Date(data.timestamp);
-              const object =
-              `<tr>
-                <td>${data.grouping.name}</td>
-                <td>${data.nftId}</td>
-                <td>${data.price}</td>
-                <td>${data.priceSymbol}</td>
-                <td>${data.account}</td>
-                <td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>
-              </tr>`;
-              table_body += object;
-            }
+          for (let i = 0; i < list.length; i++) {
+            const data = list[i];
+            const timestamp = new Date(data.timestamp);
+            const object =
+            `<tr>
+              <td>${data.grouping.name}</td>
+              <td>${data.nftId}</td>
+              <td>${data.price}</td>
+              <td>${data.priceSymbol}</td>
+              <td>${data.account}</td>
+              <td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>
+            </tr>`;
+            table_body += object;
           }
           if (list.length !== 1000) {
             isPending = false;
