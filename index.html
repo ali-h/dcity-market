@@ -7,10 +7,17 @@
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sscjs@latest/dist/ssc.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/MikeMcl/bignumber.js/bignumber.min.js"></script>
   <script>
     $(window).bind("load", function() {
       const ssc = new SSC('https://api.hive-engine.com/rpc');
+      const getPrice = async (symbol) => {
+        const token = await ssc.findOne('market', 'metrics', { symbol });
+        if (!token) return false;
+        return token.lastPrice;
+      };
       const getList = async () => {
+        const priceSIM = await getPrice('SIM');
         let table_body = '';
         let isPending = true;
         let offset = 0;
@@ -24,6 +31,12 @@
           for (let i = 0; i < list.length; i++) {
             const data = list[i];
             const timestamp = new Date(data.timestamp);
+            let priceInHive = '-';
+            if (data.priceSymbol === 'SIM' && priceSIM) {
+              priceInHive = BigNumber(priceSIM)
+                .times(data.price)
+                .toFixed(8);
+            }
             const object =
             `<tr>
               <td>${data.grouping.name}</td>
@@ -32,6 +45,7 @@
               <td>${data.priceSymbol}</td>
               <td>${data.account}</td>
               <td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>
+              <td>${priceInHive}</td>
             </tr>`;
             table_body += object;
           }
@@ -49,6 +63,7 @@
             <th>Symbol</th>
             <th>Account</th>
             <th>Time</th>
+            <th>Price in SWAP.HIVE</th>
           </thead>
           <tbody>
             ${table_body}
