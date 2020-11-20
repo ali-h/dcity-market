@@ -3,79 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NFT Sell Book - Ali H</title>
+  <title>dCity Sell Book - Ali H</title>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sscjs@latest/dist/ssc.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/MikeMcl/bignumber.js/bignumber.min.js"></script>
   <script>
-    $(window).bind("load", function() {
+    $(window).bind("load", async () => {
       const ssc = new SSC('https://api.hive-engine.com/rpc');
       const getPrice = async (symbol) => {
         const token = await ssc.findOne('market', 'metrics', { symbol });
         if (!token) return false;
         return token.lastPrice;
       };
+      const writeApp = (table_body) => {
+        $("#table").html(table_body);
+        $("#search").prop("disabled", false);
+      };
       const getList = async () => {
-        const priceSIM = await getPrice('SIM');
-        let table_body = '';
+        const list = [];
         let isPending = true;
         let offset = 0;
         while (isPending) {
-          const list = await ssc.find('nftmarket',
+          const res = await ssc.find('nftmarket',
             'CITYsellBook',
             {},
             1000,
             offset,
             [{index: "_id", descending: true}]);
-          for (let i = 0; i < list.length; i++) {
-            const data = list[i];
-            const timestamp = new Date(data.timestamp);
-            let priceInHive = '-';
-            if (data.priceSymbol === 'SIM' && priceSIM) {
-              priceInHive = BigNumber(priceSIM)
-                .times(data.price)
-                .toFixed(8);
-            }
-            const object =
-            `<tr>
-              <td>${data.grouping.name}</td>
-              <td>${data.nftId}</td>
-              <td>${data.price}</td>
-              <td>${data.priceSymbol}</td>
-              <td>${data.account}</td>
-              <td>${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}</td>
-              <td>${priceInHive}</td>
-            </tr>`;
-            table_body += object;
-          }
-          if (list.length !== 1000) {
+          list.push(...res);
+          if (res.length !== 1000) {
             isPending = false;
           }
           else offset += 1000;
         }
-        const table =
-        `<table border="1">
-          <thead>
-            <th>Name</th>
-            <th>Id</th>
-            <th>Price</th>
-            <th>Symbol</th>
-            <th>Account</th>
-            <th>Time</th>
-            <th>Price in SWAP.HIVE</th>
-          </thead>
-          <tbody>
-            ${table_body}
-          </tbody>
-        </table>`;
-        document.write(table);
+        return list;
       };
-      getList();
+      const priceSIM = await getPrice('SIM');
+      const list = await getList();
+      const getFilteredTB = (params = false) => {
+        let filteredTB = '';
+        for (let i = 0; i < list.length; i += 1) {
+          const data = list[i];
+          const timestamp = new Date(data.timestamp);
+          const timeString = `${timestamp.toLocaleTimeString()}, ${timestamp.toLocaleDateString()}`;
+          let priceInHive = '-';
+          if (data.priceSymbol === 'SIM' && priceSIM) {
+            priceInHive = BigNumber(priceSIM)
+              .times(data.price)
+              .toFixed(8);
+          }
+          let include = true;
+          const paramKeys = Object.keys(params);
+          for (let x = 0; x < paramKeys.length; x += 1) {
+            const searchWord = params[paramKeys[x]].toString().trim().toLowerCase();
+            let searchIn = '';
+            if (paramKeys[x] === 'name') searchIn = data.grouping.name.toString().toLowerCase();
+            else if (paramKeys[x] === 'priceInHive') searchIn = (priceInHive === '-') ? '0' : priceInHive;
+            else searchIn = data[paramKeys[x]].toString().toLowerCase();
+            if (paramKeys[x] === 'name' && searchIn.includes(searchWord)) include = true;
+            else if (paramKeys[x] === 'price' && BigNumber(searchIn).eq(searchWord)) include = true;
+            else if (paramKeys[x] === 'priceInHive' && BigNumber(searchIn).eq(searchWord)) include = true;
+            else if (searchIn === searchWord) include = true;
+            else {
+              include = false;
+              break;
+            }
+          }
+          if (include) {
+            const object =
+              `<tr>
+                <td>${data.grouping.name}</td>
+                <td>${data.nftId}</td>
+                <td>${data.price}</td>
+                <td>${data.priceSymbol}</td>
+                <td>${data.account}</td>
+                <td>${timeString}</td>
+                <td>${priceInHive}</td>
+              </tr>`;
+            filteredTB += object;
+          }
+        }
+        return filteredTB;
+      };
+      const table_body = await getFilteredTB();
+      await writeApp(table_body);
+      $(document).on('click', '#search', async () => {
+        $(this).prop("disabled", true);
+        const params = {};
+        $("input").each(function (i) {
+          const element = $(this);
+          if (element.val().trim() !== '') {
+            params[element.prop("id")] = element.val();
+          }
+        });
+        const table_body = await getFilteredTB(($.isEmptyObject(params)) ? false : params);
+        await writeApp(table_body);
+      });
     });
   </script>
 </head>
 <body>
-  <span>loading</span>
+  <div>
+    <span>Name</span>
+    <input id="name" />
+  </div>
+  <div>
+    <span>Id</span>
+    <input id="nftId" />
+  </div>
+  <div>
+    <span>Price</span>
+    <input id="price" />
+  </div>
+  <div>
+    <span>Symbol</span>
+    <input id="priceSymbol" />
+  </div>
+  <div>
+    <span>Account</span>
+    <input id="account" />
+  </div>
+  <div>
+    <span>Price in SWAP.HIVE</span>
+    <input id="priceInHive" />
+    <button id="search">Search</button>
+  </div>
+  <table border="1">
+    <thead>
+      <th>Name</th>
+      <th>Id</th>
+      <th>Price</th>
+      <th>Symbol</th>
+      <th>Account</th>
+      <th>Time</th>
+      <th>Price in SWAP.HIVE</th>
+    </thead>
+    <tbody id="table">
+      <td colspan="7">loading</td>
+    </tbody>
+  </table>
 </body>
 </html>
